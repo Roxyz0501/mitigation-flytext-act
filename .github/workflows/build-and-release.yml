@@ -13,7 +13,23 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
       - name: Download official ACT
         shell: pwsh
-        run: Invoke-WebRequest 'https://advancedcombattracker.com/download.php?id=57' -OutFile act.zip
+        run: |
+          $headers = @{
+            Cookie = 'humans_21909=1'
+            'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) MitigationFlytext-CI/1.0'
+          }
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            try {
+              Invoke-WebRequest 'https://advancedcombattracker.com/download.php?id=57' -Headers $headers -OutFile act.zip
+              $signature = [IO.File]::ReadAllBytes('act.zip')[0..1]
+              if ($signature[0] -ne 0x50 -or $signature[1] -ne 0x4B) { throw 'ACT download is not a ZIP archive.' }
+              break
+            } catch {
+              Remove-Item act.zip -ErrorAction SilentlyContinue
+              if ($attempt -eq 3) { throw }
+              Start-Sleep -Seconds (5 * $attempt)
+            }
+          }
       - name: Extract ACT
         shell: pwsh
         run: Expand-Archive act.zip act
