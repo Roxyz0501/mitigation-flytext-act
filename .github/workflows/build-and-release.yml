@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
       - name: Download official ACT
         shell: pwsh
-        run: Invoke-WebRequest 'https://advancedcombattracker.com/download.php' -OutFile act.zip
+        run: Invoke-WebRequest 'https://advancedcombattracker.com/download.php?id=57' -OutFile act.zip
       - name: Extract ACT
         shell: pwsh
         run: Expand-Archive act.zip act
