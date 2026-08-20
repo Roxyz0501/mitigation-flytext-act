@@ -11,37 +11,36 @@ namespace MitigationFlytext
 {
     public sealed class OverlayForm : Form
     {
-        private const int WS_EX_TRANSPARENT = 0x20, WS_EX_TOOLWINDOW = 0x80, WM_NCHITTEST = 0x84, HTCAPTION = 2;
+        private const int WS_EX_TOOLWINDOW = 0x80, WS_EX_NOACTIVATE = 0x08000000, WM_NCHITTEST = 0x84, HTTRANSPARENT = -1, HTCLIENT = 1, HTCAPTION = 2;
         private readonly List<DamageFlytextEvent> events = new List<DamageFlytextEvent>();
         private readonly Timer animation = new Timer { Interval = 33 };
         private readonly Color key = Color.FromArgb(1, 2, 3);
         private PluginSettings settings;
-        private bool lockedApplied;
         private bool contentVisible;
         public event EventHandler BoundsChangedByUser;
         public OverlayForm(PluginSettings value)
         {
-            settings = value; lockedApplied = value.Locked; AutoScaleMode = AutoScaleMode.None; BackColor = key; TransparencyKey = key;
+            settings = value; AutoScaleMode = AutoScaleMode.None; BackColor = key; TransparencyKey = key;
             FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; StartPosition = FormStartPosition.Manual; TopMost = true; DoubleBuffered = true;
             MinimumSize = new Size(360, 160); MaximumSize = new Size(1400, 900); SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
-            animation.Tick += delegate { Expire(); if (contentVisible) Invalidate(); }; animation.Start(); Move += BoundsChanged; ResizeEnd += BoundsChanged;
+            animation.Tick += delegate { Expire(); if (events.Count > 0) Invalidate(); }; animation.Start(); Move += BoundsChanged; ResizeEnd += BoundsChanged;
         }
         protected override bool ShowWithoutActivation => true;
-        protected override CreateParams CreateParams { get { var p = base.CreateParams; p.ExStyle |= WS_EX_TOOLWINDOW; if (settings != null && settings.Locked) p.ExStyle |= WS_EX_TRANSPARENT; return p; } }
+        protected override CreateParams CreateParams { get { var p = base.CreateParams; p.ExStyle |= WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE; return p; } }
         protected override void WndProc(ref Message m)
         {
             if (m.Msg == WM_NCHITTEST)
             {
-                if (!contentVisible) { m.Result = (IntPtr)(-1); return; }
-                if (!settings.Locked) { base.WndProc(ref m); if ((int)m.Result == 1) m.Result = (IntPtr)HTCAPTION; return; }
+                if (!contentVisible || settings.Locked) { m.Result = (IntPtr)HTTRANSPARENT; return; }
+                base.WndProc(ref m); if ((int)m.Result == HTCLIENT) m.Result = (IntPtr)HTCAPTION; return;
             }
             base.WndProc(ref m);
         }
         public void ApplySettings(PluginSettings value, bool restore = false)
         {
-            var changedLock = lockedApplied != value.Locked; settings = value; settings.Normalize();
+            settings = value; settings.Normalize();
             if (restore) { var r = new Rectangle(settings.Left, settings.Top, settings.Width, settings.Height); if (!Screen.AllScreens.Any(x => x.WorkingArea.IntersectsWith(r))) r.Location = new Point(100, 100); Bounds = r; }
-            lockedApplied = settings.Locked; if (changedLock && IsHandleCreated) RecreateHandle(); RefreshVisible(); Invalidate();
+            RefreshVisible(); Invalidate();
         }
         public void Push(DamageFlytextEvent value)
         {
@@ -53,15 +52,9 @@ namespace MitigationFlytext
         {
             var show = settings.OverlayEnabled && (settings.Preview || events.Count > 0);
             contentVisible = show;
-            if (!Visible)
-            {
-                if (!show) return;
-                Opacity = 0;
-                Show();
-                Invalidate();
-                Update();
-            }
-            Opacity = show ? settings.OpacityPercent / 100d : 0d;
+            var targetOpacity = show ? settings.OpacityPercent / 100d : 0d;
+            if (!Visible) { Opacity = 0; Show(); }
+            if (Math.Abs(Opacity - targetOpacity) > .001d) Opacity = targetOpacity;
         }
         internal bool ContentVisibleForTest => contentVisible;
         private void BoundsChanged(object sender, EventArgs e) { if (settings.Locked) return; settings.Left = Left; settings.Top = Top; settings.Width = Width; settings.Height = Height; BoundsChangedByUser?.Invoke(this, EventArgs.Empty); }

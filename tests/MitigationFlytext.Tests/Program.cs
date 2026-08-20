@@ -16,7 +16,7 @@ internal static class Program
     {
         try
         {
-            DecodeDamage(); TrackMitigation(); TrackZeroDamage(); TrackBarrierAbsorption(); TrackEnemyDebuff(); RemoveAndExpire(); LocalizationAndCompatibility(); CatalogSanity(); UpdateSafety(); PreviewToggleDoesNotHideWindow(); RenderPreview(); RenderBarrierFlytext(); RenderSettingsTabs();
+            DecodeDamage(); TrackMitigation(); TrackZeroDamage(); TrackBarrierAbsorption(); TrackEnemyDebuff(); RemoveAndExpire(); LocalizationAndCompatibility(); CatalogSanity(); UpdateSafety(); PreviewToggleDoesNotHideWindow(); LockToggleKeepsWindowHandle(); RenderPreview(); RenderBarrierFlytext(); RenderSettingsTabs();
             Console.WriteLine("MitigationFlytext tests: PASS"); return 0;
         }
         catch (Exception ex) { Console.Error.WriteLine("MitigationFlytext tests: FAIL\n" + ex); return 1; }
@@ -111,6 +111,19 @@ internal static class Program
             Assert(form.Visible && !form.ContentVisibleForTest && form.Opacity == 0, "preview off should retain a transparent window instead of Hide/Show flicker");
             settings.Preview = true; form.ApplySettings(settings);
             Assert(form.Visible && form.ContentVisibleForTest && form.Opacity > 0, "preview should return without recreating the window");
+        }
+    }
+    private static void LockToggleKeepsWindowHandle()
+    {
+        var settings = new PluginSettings { Preview = true, OverlayEnabled = true, Locked = false, Width = 480, Height = 180 };
+        using (var form = new OverlayForm(settings))
+        {
+            form.ApplySettings(settings, true); var handle = form.Handle; var bounds = form.Bounds;
+            settings.Locked = true; form.ApplySettings(settings);
+            Assert(form.Handle == handle, "locking must not recreate the overlay window");
+            Assert(form.Bounds == bounds && form.Visible, "locking must retain bounds and visibility");
+            settings.Locked = false; form.ApplySettings(settings);
+            Assert(form.Handle == handle, "unlocking must not recreate the overlay window");
         }
     }
     private static void RenderBarrierFlytext()
