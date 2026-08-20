@@ -65,7 +65,7 @@ namespace MitigationFlytext
 
         private void ConfigureTabs()
         {
-            tabs.Dock = DockStyle.Fill; tabs.DrawMode = TabDrawMode.OwnerDrawFixed; tabs.ItemSize = new Size(118, 31); tabs.SizeMode = TabSizeMode.Fixed; tabs.Padding = new Point(18, 5);
+            tabs.Dock = DockStyle.Fill; tabs.DrawMode = TabDrawMode.OwnerDrawFixed; tabs.Padding = new Point(18, 6);
             settingsTab.BackColor = updateTab.BackColor = Color.White; supportTab.BackColor = Color.FromArgb(255, 249, 239);
             settingsTab.Padding = updateTab.Padding = supportTab.Padding = new Padding(4);
             tabs.DrawItem += DrawTab; tabs.MouseMove += TabsMouseMove; tabs.MouseLeave += delegate { hoveredTabIndex = -1; tabs.Invalidate(); };
@@ -166,7 +166,7 @@ namespace MitigationFlytext
         {
             var selected = e.Index == tabs.SelectedIndex; var hovered = e.Index == hoveredTabIndex; var support = tabs.TabPages[e.Index] == supportTab;
             var background = selected ? Color.White : hovered ? Color.FromArgb(247, 248, 250) : Color.FromArgb(240, 242, 245); var foreground = Color.FromArgb(42, 53, 69);
-            if (support) { background = selected ? Color.FromArgb(255, 245, 226) : hovered ? Color.FromArgb(255, 238, 207) : Color.FromArgb(250, 231, 197); foreground = selected ? Color.FromArgb(137, 62, 7) : Color.FromArgb(174, 84, 13); }
+            if (support) { background = selected ? Color.FromArgb(255, 245, 226) : hovered ? Color.FromArgb(255, 238, 207) : Color.FromArgb(250, 231, 197); foreground = selected ? Color.FromArgb(137, 62, 7) : hovered ? Color.FromArgb(157, 72, 8) : Color.FromArgb(174, 84, 13); }
             using (var brush = new SolidBrush(background)) e.Graphics.FillRectangle(brush, e.Bounds); TextRenderer.DrawText(e.Graphics, tabs.TabPages[e.Index].Text, tabs.Font, e.Bounds, foreground, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine);
             if (support && selected) using (var pen = new Pen(Color.FromArgb(213, 137, 32), 2f)) e.Graphics.DrawLine(pen, e.Bounds.Left + 4, e.Bounds.Bottom - 2, e.Bounds.Right - 4, e.Bounds.Bottom - 2);
         }
