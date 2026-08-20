@@ -16,7 +16,7 @@ internal static class Program
     {
         try
         {
-            DecodeDamage(); TrackMitigation(); TrackZeroDamage(); TrackEnemyDebuff(); RemoveAndExpire(); LocalizationAndCompatibility(); CatalogSanity(); UpdateSafety(); RenderPreview(); RenderSettingsTabs();
+            DecodeDamage(); TrackMitigation(); TrackZeroDamage(); TrackBarrierAbsorption(); TrackEnemyDebuff(); RemoveAndExpire(); LocalizationAndCompatibility(); CatalogSanity(); UpdateSafety(); PreviewToggleDoesNotHideWindow(); RenderPreview(); RenderBarrierFlytext(); RenderSettingsTabs();
             Console.WriteLine("MitigationFlytext tests: PASS"); return 0;
         }
         catch (Exception ex) { Console.Error.WriteLine("MitigationFlytext tests: FAIL\n" + ex); return 1; }
@@ -51,6 +51,17 @@ internal static class Program
         t.ProcessLine(Damage("2026-01-01T00:00:02+00:00", "40000001", "Invulnerable Hit", "10000001", "1000"));
         Assert(received != null && received.Damage == 0 && received.EstimatedBeforeMitigation == 0, "zero damage must be displayed");
     }
+    private static void TrackBarrierAbsorption()
+    {
+        var t = new CombatLogTracker(); DamageFlytextEvent received = null; t.DamageReceived += (s, e) => received = e;
+        t.ProcessLine("02|2026-01-01T00:00:00+00:00|10000001|Player|");
+        t.ProcessLine("26|2026-01-01T00:00:00.5+00:00|129|Galvanize|30.00|10000002|Scholar|10000001|Player|00|");
+        t.ProcessLine("38|2026-01-01T00:00:01+00:00|10000001|Player|0|50000|50000|10000|10000|20|0|");
+        t.ProcessLine(DamageWithSequence("2026-01-01T00:00:02+00:00", "40000001", "Barrier Hit", "10000001", "17700000", "00001234"));
+        t.ProcessLine("37|2026-01-01T00:00:02.1+00:00|10000001|Player|00001234|49000|50000|10000|10000|10|0|");
+        Assert(received != null && received.BarrierAbsorbed == 5000 && received.Damage == 1000, "barrier absorption must reduce actual HP damage");
+        Assert(received.Mitigations.Any(x => x.Definition.HasBarrier && x.Definition.Name == "Galvanize"), "barrier skill attribution");
+    }
     private static void RemoveAndExpire()
     {
         var t = new CombatLogTracker(); var events = new List<DamageFlytextEvent>(); t.DamageReceived += (s, e) => events.Add(e); t.ProcessLine("02|2026-01-01T00:00:00+00:00|10000001|Player|");
@@ -64,7 +75,7 @@ internal static class Program
         Assert(Localization.MapCulture(new CultureInfo("ko-KR")) == "ko", "ko map"); Assert(Localization.Get("xx", "Support") == "Support", "fallback");
         var s = new PluginSettings(); Assert(s.InitializeLanguageIfMissing(new CultureInfo("ja-JP")) && s.Language == "ja", "first language"); Assert(!s.InitializeLanguageIfMissing(new CultureInfo("ko-KR")) && s.Language == "ja", "saved language");
     }
-    private static void CatalogSanity() { Assert(MitigationCatalog.All.Count() >= 25, "catalog coverage"); Assert(MitigationCatalog.All.All(x => x.Percent > 0 && x.Percent <= 100), "catalog rates"); Assert(MitigationCatalog.All.All(x => StatusIconStore.Get(x.StatusId) != null), "all mitigation icons must be embedded"); }
+    private static void CatalogSanity() { Assert(MitigationCatalog.All.Count() >= 50, "catalog coverage"); Assert(MitigationCatalog.All.All(x => (x.Percent > 0 && x.Percent <= 100) || x.HasBarrier), "catalog rates/barriers"); Assert(MitigationCatalog.All.All(x => StatusIconStore.Get(x.StatusId) != null), "all mitigation icons must be embedded"); }
     private static void UpdateSafety()
     {
         Assert(UpdateConfiguration.IsConfigured && UpdateConfiguration.RepositoryName == "mitigation-flytext-act", "repository config");
@@ -89,6 +100,30 @@ internal static class Program
             var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MitigationFlytext-preview.png"); bitmap.Save(path); Assert(new FileInfo(path).Length > 1000, "preview render");
         }
     }
+    private static void PreviewToggleDoesNotHideWindow()
+    {
+        var settings = new PluginSettings { Preview = true, OverlayEnabled = true, Locked = false, Width = 480, Height = 180 };
+        using (var form = new OverlayForm(settings))
+        {
+            form.ApplySettings(settings, true);
+            Assert(form.Visible && form.ContentVisibleForTest && form.Opacity > 0, "preview should be visible");
+            settings.Preview = false; form.ApplySettings(settings);
+            Assert(form.Visible && !form.ContentVisibleForTest && form.Opacity == 0, "preview off should retain a transparent window instead of Hide/Show flicker");
+            settings.Preview = true; form.ApplySettings(settings);
+            Assert(form.Visible && form.ContentVisibleForTest && form.Opacity > 0, "preview should return without recreating the window");
+        }
+    }
+    private static void RenderBarrierFlytext()
+    {
+        MitigationDefinition barrier; MitigationDefinition reduction; Assert(MitigationCatalog.TryGet(297, out barrier), "barrier preview catalog entry"); Assert(MitigationCatalog.TryGet(1193, out reduction), "reduction preview catalog entry");
+        var settings = new PluginSettings { Language = "ja", Preview = false, OverlayEnabled = true, Locked = false, Left = 0, Top = 0, Width = 760, Height = 240, FontSize = 20 };
+        using (var form = new OverlayForm(settings)) using (var bitmap = new Bitmap(settings.Width, settings.Height))
+        {
+            form.ApplySettings(settings, true); form.Bounds = new Rectangle(0, 0, bitmap.Width, bitmap.Height);
+            form.Push(new DamageFlytextEvent { TimestampUtc = DateTime.UtcNow, ActionName = "レイドワイド", Damage = 18000, EstimatedBeforeMitigation = 30000, TotalMitigationPercent = 20, BarrierAbsorbed = 6000, Mitigations = new List<ActiveMitigation> { new ActiveMitigation { Definition = barrier, IsMine = true }, new ActiveMitigation { Definition = reduction } } });
+            form.DrawToBitmap(bitmap, form.ClientRectangle); var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MitigationFlytext-barrier.png"); bitmap.Save(path); Assert(new FileInfo(path).Length > 1000, "barrier flytext render");
+        }
+    }
     private static void RenderSettingsTabs()
     {
         var output = AppDomain.CurrentDomain.BaseDirectory;
@@ -104,5 +139,10 @@ internal static class Program
     }
     private static IEnumerable<Control> Descendants(Control root) { foreach (Control child in root.Controls) { yield return child; foreach (var nested in Descendants(child)) yield return nested; } }
     private static string Damage(string at, string source, string name, string target, string amount) => "21|" + at + "|" + source + "|Boss|1234|" + name + "|" + target + "|Player|750003|" + amount + "|0|0|0|0|0|0|0|0|0|0|0|0|0|0|";
+    private static string DamageWithSequence(string at, string source, string name, string target, string amount, string sequence)
+    {
+        var fields = new string[47]; fields[0] = "21"; fields[1] = at; fields[2] = source; fields[3] = "Boss"; fields[4] = "1234"; fields[5] = name; fields[6] = target; fields[7] = "Player"; fields[8] = "750003"; fields[9] = amount;
+        for (var i = 10; i < fields.Length; i++) fields[i] = "0"; fields[44] = sequence; fields[45] = "0"; fields[46] = "1"; return string.Join("|", fields) + "|";
+    }
     private static void Assert(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
 }

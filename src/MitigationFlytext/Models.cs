@@ -7,13 +7,14 @@ namespace MitigationFlytext
 
     public sealed class MitigationDefinition
     {
-        public MitigationDefinition(uint id, string name, int percent, MitigationScope scope, string abbreviation)
-        { StatusId = id; Name = name; Percent = percent; Scope = scope; Abbreviation = abbreviation; }
+        public MitigationDefinition(uint id, string name, int percent, MitigationScope scope, string abbreviation, bool hasBarrier = false)
+        { StatusId = id; Name = name; Percent = percent; Scope = scope; Abbreviation = abbreviation; HasBarrier = hasBarrier; }
         public uint StatusId { get; }
         public string Name { get; }
         public int Percent { get; }
         public MitigationScope Scope { get; }
         public string Abbreviation { get; }
+        public bool HasBarrier { get; }
     }
 
     public sealed class ActiveMitigation
@@ -32,6 +33,7 @@ namespace MitigationFlytext
         public long Damage { get; set; }
         public long EstimatedBeforeMitigation { get; set; }
         public double TotalMitigationPercent { get; set; }
+        public long BarrierAbsorbed { get; set; }
         public IReadOnlyList<ActiveMitigation> Mitigations { get; set; }
     }
 }

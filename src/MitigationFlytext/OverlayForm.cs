@@ -17,20 +17,29 @@ namespace MitigationFlytext
         private readonly Color key = Color.FromArgb(1, 2, 3);
         private PluginSettings settings;
         private bool lockedApplied;
+        private bool contentVisible;
         public event EventHandler BoundsChangedByUser;
         public OverlayForm(PluginSettings value)
         {
             settings = value; lockedApplied = value.Locked; AutoScaleMode = AutoScaleMode.None; BackColor = key; TransparencyKey = key;
             FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; StartPosition = FormStartPosition.Manual; TopMost = true; DoubleBuffered = true;
             MinimumSize = new Size(360, 160); MaximumSize = new Size(1400, 900); SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
-            animation.Tick += delegate { Expire(); Invalidate(); }; animation.Start(); Move += BoundsChanged; ResizeEnd += BoundsChanged;
+            animation.Tick += delegate { Expire(); if (contentVisible) Invalidate(); }; animation.Start(); Move += BoundsChanged; ResizeEnd += BoundsChanged;
         }
         protected override bool ShowWithoutActivation => true;
         protected override CreateParams CreateParams { get { var p = base.CreateParams; p.ExStyle |= WS_EX_TOOLWINDOW; if (settings != null && settings.Locked) p.ExStyle |= WS_EX_TRANSPARENT; return p; } }
-        protected override void WndProc(ref Message m) { if (m.Msg == WM_NCHITTEST && !settings.Locked) { base.WndProc(ref m); if ((int)m.Result == 1) m.Result = (IntPtr)HTCAPTION; return; } base.WndProc(ref m); }
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == WM_NCHITTEST)
+            {
+                if (!contentVisible) { m.Result = (IntPtr)(-1); return; }
+                if (!settings.Locked) { base.WndProc(ref m); if ((int)m.Result == 1) m.Result = (IntPtr)HTCAPTION; return; }
+            }
+            base.WndProc(ref m);
+        }
         public void ApplySettings(PluginSettings value, bool restore = false)
         {
-            var changedLock = lockedApplied != value.Locked; settings = value; settings.Normalize(); Opacity = settings.OpacityPercent / 100d;
+            var changedLock = lockedApplied != value.Locked; settings = value; settings.Normalize();
             if (restore) { var r = new Rectangle(settings.Left, settings.Top, settings.Width, settings.Height); if (!Screen.AllScreens.Any(x => x.WorkingArea.IntersectsWith(r))) r.Location = new Point(100, 100); Bounds = r; }
             lockedApplied = settings.Locked; if (changedLock && IsHandleCreated) RecreateHandle(); RefreshVisible(); Invalidate();
         }
@@ -40,13 +49,27 @@ namespace MitigationFlytext
             events.Insert(0, value); while (events.Count > settings.MaximumLines) events.RemoveAt(events.Count - 1); RefreshVisible(); Invalidate();
         }
         private void Expire() { var limit = DateTime.UtcNow.AddMilliseconds(-settings.DurationMilliseconds); events.RemoveAll(x => x.TimestampUtc < limit); RefreshVisible(); }
-        private void RefreshVisible() { var show = settings.OverlayEnabled && (settings.Preview || events.Count > 0); if (show && !Visible) Show(); else if (!show && Visible) Hide(); }
+        private void RefreshVisible()
+        {
+            var show = settings.OverlayEnabled && (settings.Preview || events.Count > 0);
+            contentVisible = show;
+            if (!Visible)
+            {
+                if (!show) return;
+                Opacity = 0;
+                Show();
+                Invalidate();
+                Update();
+            }
+            Opacity = show ? settings.OpacityPercent / 100d : 0d;
+        }
+        internal bool ContentVisibleForTest => contentVisible;
         private void BoundsChanged(object sender, EventArgs e) { if (settings.Locked) return; settings.Left = Left; settings.Top = Top; settings.Width = Width; settings.Height = Height; BoundsChangedByUser?.Invoke(this, EventArgs.Empty); }
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e); e.Graphics.SmoothingMode = SmoothingMode.AntiAlias; e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
             if (settings.Preview && events.Count == 0) { DrawPreview(e.Graphics); return; }
-            var y = Height - 26f; var now = DateTime.UtcNow;
+            var y = Height - 12f; var now = DateTime.UtcNow;
             foreach (var item in events.Take(settings.MaximumLines))
             {
                 var age = (now - item.TimestampUtc).TotalMilliseconds; var progress = Math.Max(0, Math.Min(1, age / settings.DurationMilliseconds));
@@ -54,7 +77,7 @@ namespace MitigationFlytext
                 y -= DrawItem(e.Graphics, item, y - rise, alpha) + 10;
             }
         }
-        private float DrawItem(Graphics g, DamageFlytextEvent item, float baseline, int alpha)
+        private float DrawItem(Graphics g, DamageFlytextEvent item, float bottom, int alpha)
         {
             using (var titleFont = new Font(Localization.FontFamily(settings.Language), settings.FontSize, FontStyle.Bold))
             using (var detailFont = new Font(Localization.FontFamily(settings.Language), Math.Max(9, settings.FontSize * .55f), FontStyle.Regular))
@@ -64,12 +87,23 @@ namespace MitigationFlytext
             {
                 var first = item.ActionName + "  " + item.Damage.ToString("N0", CultureInfo.CurrentCulture);
                 var second = " [" + item.EstimatedBeforeMitigation.ToString("N0", CultureInfo.CurrentCulture) + "]  (-" + item.TotalMitigationPercent.ToString("0.#", CultureInfo.CurrentCulture) + "%)";
-                var a = g.MeasureString(first, titleFont); var b = g.MeasureString(second, detailFont); var total = a.Width + b.Width; var x = Math.Max(8, (Width - total) / 2);
-                g.DrawString(first, titleFont, shadow, x + 2, baseline - a.Height + 2); g.DrawString(first, titleFont, primary, x, baseline - a.Height);
-                g.DrawString(second, detailFont, shadow, x + a.Width + 2, baseline - b.Height + 1); g.DrawString(second, detailFont, accent, x + a.Width, baseline - b.Height - 1);
-                var icons = item.Mitigations ?? new List<ActiveMitigation>(); var iconSize = Math.Max(22, settings.FontSize + 5); var gap = 5; var iconsWidth = icons.Count * (iconSize + gap); var ix = Math.Max(8, (Width - iconsWidth) / 2); var iy = baseline + 3;
+                var icons = item.Mitigations ?? new List<ActiveMitigation>(); var barriers = icons.Where(mitigation => mitigation.Definition.HasBarrier).ToList();
+                var barrierText = item.BarrierAbsorbed > 0 && barriers.Count > 0 ? Localization.Get(settings.Language, "BarrierAbsorbed", item.BarrierAbsorbed.ToString("N0", CultureInfo.CurrentCulture), string.Join(" / ", barriers.Select(mitigation => mitigation.Definition.Name))) : null;
+                var a = g.MeasureString(first, titleFont); var b = g.MeasureString(second, detailFont); var titleHeight = Math.Max(a.Height, b.Height); var barrierHeight = barrierText == null ? 0 : g.MeasureString(barrierText, detailFont).Height + 3;
+                var iconSize = Math.Max(22, settings.FontSize + 5); var gap = 5; var iconHeight = icons.Count > 0 ? iconSize + 5 : 0; var totalHeight = titleHeight + barrierHeight + iconHeight; var top = bottom - totalHeight;
+                var total = a.Width + b.Width; var x = Math.Max(8, (Width - total) / 2);
+                g.DrawString(first, titleFont, shadow, x + 2, top + 2); g.DrawString(first, titleFont, primary, x, top);
+                g.DrawString(second, detailFont, shadow, x + a.Width + 2, top + titleHeight - b.Height + 1); g.DrawString(second, detailFont, accent, x + a.Width, top + titleHeight - b.Height - 1);
+                var nextY = top + titleHeight;
+                if (barrierText != null)
+                {
+                    var size = g.MeasureString(barrierText, detailFont); var bx = Math.Max(8, (Width - size.Width) / 2);
+                    using (var barrierBrush = new SolidBrush(Color.FromArgb(alpha, 104, 224, 255))) g.DrawString(barrierText, detailFont, barrierBrush, bx, nextY);
+                    nextY += barrierHeight;
+                }
+                var iconsWidth = icons.Count * (iconSize + gap); var ix = Math.Max(8, (Width - iconsWidth) / 2); var iy = nextY + 3;
                 foreach (var mitigation in icons) { DrawIcon(g, mitigation, new RectangleF(ix, iy, iconSize, iconSize), alpha); ix += iconSize + gap; }
-                return Math.Max(a.Height, b.Height) + (icons.Count > 0 ? iconSize + 5 : 0);
+                return totalHeight;
             }
         }
         private static void DrawIcon(Graphics g, ActiveMitigation m, RectangleF r, int alpha)

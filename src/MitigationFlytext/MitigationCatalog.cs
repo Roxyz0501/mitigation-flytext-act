@@ -38,12 +38,36 @@ namespace MitigationFlytext
             Add(d, 3003, "Holos", 10, MitigationScope.OnPlayer, "HO");
             Add(d, 2682, "Oblation", 10, MitigationScope.OnPlayer, "OB");
             Add(d, 2675, "Knight's Resolve", 15, MitigationScope.OnPlayer, "KR");
-            Add(d, 2680, "Stem the Tide", 10, MitigationScope.OnPlayer, "ST");
+            Add(d, 2680, "Stem the Tide", 10, MitigationScope.OnPlayer, "ST", true);
             Add(d, 2684, "Clarity of Corundum", 15, MitigationScope.OnPlayer, "CC");
+            Add(d, 1362, "Divine Veil", 0, MitigationScope.OnPlayer, "DV", true);
+            Add(d, 1457, "Shake It Off", 0, MitigationScope.OnPlayer, "SI", true);
+            Add(d, 1178, "The Blackest Night", 0, MitigationScope.OnPlayer, "BN", true);
+            Add(d, 1898, "Brutal Shell", 0, MitigationScope.OnPlayer, "BS", true);
+            Add(d, 1218, "Divine Benison", 0, MitigationScope.OnPlayer, "DB", true);
+            Add(d, 297, "Galvanize", 0, MitigationScope.OnPlayer, "GA", true);
+            Add(d, 1918, "Catalyze", 0, MitigationScope.OnPlayer, "CA", true);
+            Add(d, 1917, "Seraphic Veil", 0, MitigationScope.OnPlayer, "SV", true);
+            Add(d, 1887, "The Spire", 0, MitigationScope.OnPlayer, "SP", true);
+            Add(d, 1921, "Neutral Sect", 0, MitigationScope.OnPlayer, "NS", true);
+            Add(d, 1889, "Celestial Intersection", 0, MitigationScope.OnPlayer, "CI", true);
+            Add(d, 3365, "Holosakos", 0, MitigationScope.OnPlayer, "HS", true);
+            Add(d, 2607, "Eukrasian Diagnosis", 0, MitigationScope.OnPlayer, "ED", true);
+            Add(d, 2608, "Differential Diagnosis", 0, MitigationScope.OnPlayer, "DD", true);
+            Add(d, 2609, "Eukrasian Prognosis", 0, MitigationScope.OnPlayer, "EP", true);
+            Add(d, 2612, "Haima", 0, MitigationScope.OnPlayer, "HA", true);
+            Add(d, 2613, "Panhaima", 0, MitigationScope.OnPlayer, "PH", true);
+            Add(d, 2702, "Radiant Aegis", 0, MitigationScope.OnPlayer, "RA", true);
+            Add(d, 168, "Manaward", 0, MitigationScope.OnPlayer, "MW", true);
+            Add(d, 488, "Shade Shift", 0, MitigationScope.OnPlayer, "SH", true);
+            Add(d, 2596, "Crest of Time Borrowed", 0, MitigationScope.OnPlayer, "CT", true);
+            Add(d, 3686, "Tempera Coat", 0, MitigationScope.OnPlayer, "TC", true);
+            Add(d, 3687, "Tempera Grassa", 0, MitigationScope.OnPlayer, "TG", true);
+            Add(d, 2697, "Improvised Finish", 0, MitigationScope.OnPlayer, "IF", true);
             return d;
         }
 
-        private static void Add(Dictionary<uint, MitigationDefinition> d, uint id, string name, int percent, MitigationScope scope, string abbreviation)
-            => d[id] = new MitigationDefinition(id, name, percent, scope, abbreviation);
+        private static void Add(Dictionary<uint, MitigationDefinition> d, uint id, string name, int percent, MitigationScope scope, string abbreviation, bool hasBarrier = false)
+            => d[id] = new MitigationDefinition(id, name, percent, scope, abbreviation, hasBarrier);
     }
 }
