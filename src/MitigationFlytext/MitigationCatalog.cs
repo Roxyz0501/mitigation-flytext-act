@@ -16,8 +16,8 @@ namespace MitigationFlytext
             Add(d, 89, "Vengeance", 30, MitigationScope.OnPlayer, "VE");
             Add(d, 747, "Shadow Wall", 30, MitigationScope.OnPlayer, "SW");
             Add(d, 1834, "Nebula", 30, MitigationScope.OnPlayer, "NE");
-            Add(d, 3838, "Damnation", 40, MitigationScope.OnPlayer, "DA");
-            Add(d, 3840, "Great Nebula", 40, MitigationScope.OnPlayer, "GN");
+            Add(d, 3832, "Damnation", 40, MitigationScope.OnPlayer, "DA");
+            Add(d, 3838, "Great Nebula", 40, MitigationScope.OnPlayer, "GN");
             Add(d, 1193, "Reprisal", 10, MitigationScope.OnAttacker, "RP");
             Add(d, 1195, "Feint", 10, MitigationScope.OnAttacker, "FE");
             Add(d, 1203, "Addle", 10, MitigationScope.OnAttacker, "AD");
@@ -29,11 +29,11 @@ namespace MitigationFlytext
             Add(d, 299, "Sacred Soil", 10, MitigationScope.OnPlayer, "SO");
             Add(d, 849, "Collective Unconscious", 10, MitigationScope.OnPlayer, "CU");
             Add(d, 2618, "Kerachole", 10, MitigationScope.OnPlayer, "KE");
-            Add(d, 2649, "Expedience", 10, MitigationScope.OnPlayer, "EX");
+            Add(d, 2711, "Desperate Measures", 10, MitigationScope.OnPlayer, "DM");
             Add(d, 1839, "Heart of Light", 10, MitigationScope.OnPlayer, "HL");
             Add(d, 1894, "Dark Missionary", 10, MitigationScope.OnPlayer, "DM");
             Add(d, 2708, "Aquaveil", 15, MitigationScope.OnPlayer, "AQ");
-            Add(d, 2710, "Exaltation", 10, MitigationScope.OnPlayer, "EA");
+            Add(d, 2717, "Exaltation", 10, MitigationScope.OnPlayer, "EA");
             Add(d, 2619, "Taurochole", 10, MitigationScope.OnPlayer, "TC");
             Add(d, 3003, "Holos", 10, MitigationScope.OnPlayer, "HO");
             Add(d, 2682, "Oblation", 10, MitigationScope.OnPlayer, "OB");

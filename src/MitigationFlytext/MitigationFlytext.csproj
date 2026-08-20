@@ -7,6 +7,8 @@
     <RootNamespace>MitigationFlytext</RootNamespace>
     <Version>1.0.0</Version>
     <Authors>Roxyz0501</Authors>
+    <Company>Roxyz0501</Company>
+    <Product>Mitigation Flytext for ACT</Product>
     <Description>Incoming damage and mitigation flytext overlay for FFXIV ACT.</Description>
     <ActPath Condition="'$(ActPath)' == ''">C:\Program Files (x86)\Advanced Combat Tracker\Advanced Combat Tracker.exe</ActPath>
   </PropertyGroup>
@@ -18,5 +20,8 @@
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Web.Extensions" />
     <Reference Include="System.Windows.Forms" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\Status\*.png" />
   </ItemGroup>
 </Project>

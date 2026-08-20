@@ -13,14 +13,16 @@ namespace MitigationFlytext
         private readonly CombatLogTracker tracker = new CombatLogTracker();
         private readonly UpdateService updateService = new UpdateService();
         private readonly CancellationTokenSource updateCancellation = new CancellationTokenSource();
+        private UpdateCheckResult lastUpdateResult;
+        private bool updateCheckRunning;
         private PluginSettings settings; private SettingsControl control; private OverlayForm overlay; private Label status; private TabPage page; private string settingsPath;
         public void InitPlugin(TabPage pluginScreenSpace, Label pluginStatusText)
         {
             status = pluginStatusText; page = pluginScreenSpace; settingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Advanced Combat Tracker", "Config", "MitigationFlytext.xml");
             settings = PluginSettings.Load(settingsPath); if (settings.InitializeLanguageIfMissing(CultureInfo.CurrentUICulture)) Save(); settings.Normalize();
-            control = new SettingsControl(settings); control.SettingsChanged += SettingsChanged; control.CheckUpdatesRequested += delegate { CheckForUpdates(); }; control.InstallUpdateRequested += InstallUpdate; control.LaterRequested += Later; page.Controls.Add(control); page.Text = Localization.Get(settings.Language, "PluginTab");
+            control = new SettingsControl(settings); control.SettingsChanged += SettingsChanged; control.CheckUpdatesRequested += delegate { CheckForUpdates(true); }; control.InstallUpdateRequested += InstallUpdate; control.LaterRequested += Later; page.Controls.Add(control); page.Text = Localization.Get(settings.Language, "PluginTab");
             overlay = new OverlayForm(settings); overlay.BoundsChangedByUser += delegate { Save(); }; overlay.ApplySettings(settings, true);
-            ReplayCurrentLog(); tracker.DamageReceived += DamageReceived; ActGlobals.oFormActMain.OnLogLineRead += LogLineRead; status.Text = Localization.Get(settings.Language, "Started"); if (settings.CheckUpdatesOnStartup) CheckForUpdates();
+            ReplayCurrentLog(); tracker.DamageReceived += DamageReceived; ActGlobals.oFormActMain.OnLogLineRead += LogLineRead; status.Text = Localization.Get(settings.Language, "Started"); if (settings.CheckUpdatesOnStartup) CheckForUpdates(false);
         }
         private void LogLineRead(bool isImport, LogLineEventArgs info) { if (isImport || info == null) return; tracker.ProcessLine(info.originalLogLine); if (!string.Equals(info.originalLogLine, info.logLine, StringComparison.Ordinal)) tracker.ProcessLine(info.logLine); }
         private void DamageReceived(object sender, DamageFlytextEvent e) { overlay?.Push(e); }
@@ -39,18 +41,31 @@ namespace MitigationFlytext
             }
             catch { }
         }
-        private async void CheckForUpdates()
+        private async void CheckForUpdates(bool manual)
         {
-            if (control == null || control.IsDisposed) return; control.SetUpdateChecking(); var current = Assembly.GetExecutingAssembly().GetName().Version;
-            var result = await updateService.CheckAsync(current, updateCancellation.Token); if (control == null || control.IsDisposed || updateCancellation.IsCancellationRequested) return; control.ShowUpdateResult(result, current);
+            if (updateCheckRunning || control == null || control.IsDisposed) return; updateCheckRunning = true; control.SetUpdateChecking(); var current = Assembly.GetExecutingAssembly().GetName().Version;
+            var result = await updateService.CheckAsync(current, updateCancellation.Token); if (control == null || control.IsDisposed || updateCancellation.IsCancellationRequested) return;
+            updateCheckRunning = false;
+            lastUpdateResult = result; settings.LastUpdateCheckUtc = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture); Save();
+            if (!manual && result != null && result.Status == UpdateCheckStatus.UpdateAvailable && result.Release != null &&
+                string.Equals(settings.SkippedVersion, result.Release.Version.ToString(), StringComparison.OrdinalIgnoreCase))
+            { control.ShowUpdateResult(result, current); control.ShowUpdateSkipped(result.Release.Version.ToString()); }
+            else
+            {
+                control.ShowUpdateResult(result, current);
+                if (result != null && result.Status == UpdateCheckStatus.UpdateAvailable && result.Release != null)
+                {
+                    control.FocusUpdateTab(); status.Text = Localization.Get(settings.Language, "UpdateAvailable", current.ToString(3), result.Release.Version);
+                }
+            }
         }
         private async void InstallUpdate(object sender, EventArgs e)
         {
-            var release = control == null ? null : control.AvailableRelease; if (release == null) return; control.SetUpdateText("Preparing");
-            try { var prepared = await updateService.DownloadAndVerifyAsync(release, updateCancellation.Token); if (updateCancellation.IsCancellationRequested) return; updateService.LaunchUpdater(prepared, Assembly.GetExecutingAssembly().Location); control.SetUpdateText("Prepared"); }
-            catch (Exception ex) { control.SetUpdateText("UpdateFailed", ex.GetBaseException().Message); }
+            var release = lastUpdateResult == null ? null : lastUpdateResult.Release; if (release == null || lastUpdateResult.Status != UpdateCheckStatus.UpdateAvailable) return; control.SetUpdateText("Preparing");
+            try { var prepared = await updateService.DownloadAndVerifyAsync(release, updateCancellation.Token); if (updateCancellation.IsCancellationRequested) return; updateService.LaunchUpdater(prepared, Assembly.GetExecutingAssembly().Location); control.SetUpdateText("Prepared"); status.Text = Localization.Get(settings.Language, "Prepared"); }
+            catch (Exception ex) { control.SetUpdateText("UpdateFailed", ex.GetBaseException().Message); status.Text = Localization.Get(settings.Language, "UpdateFailed", ex.GetBaseException().Message); }
         }
-        private void Later(object sender, EventArgs e) { if (control.AvailableRelease != null) { settings.SkippedVersion = control.AvailableRelease.Version.ToString(); Save(); } control.SetUpdateText("Later"); }
+        private void Later(object sender, EventArgs e) { var release = lastUpdateResult == null ? null : lastUpdateResult.Release; if (release == null) return; settings.SkippedVersion = release.Version.ToString(); Save(); control.ShowUpdateSkipped(settings.SkippedVersion); }
         public void DeInitPlugin()
         {
             ActGlobals.oFormActMain.OnLogLineRead -= LogLineRead; tracker.DamageReceived -= DamageReceived; updateCancellation.Cancel(); if (control != null) control.SettingsChanged -= SettingsChanged; Save();

@@ -22,6 +22,7 @@ namespace MitigationFlytext
         public string Language { get; set; }
         public bool CheckUpdatesOnStartup { get; set; } = true;
         public string SkippedVersion { get; set; } = string.Empty;
+        public string LastUpdateCheckUtc { get; set; } = string.Empty;
 
         public void Normalize()
         {
@@ -31,6 +32,7 @@ namespace MitigationFlytext
             FontSize = Math.Max(12, Math.Min(40, FontSize));
             if (!string.IsNullOrWhiteSpace(Language)) Language = Localization.NormalizeLanguage(Language);
             if (SkippedVersion == null) SkippedVersion = string.Empty;
+            if (LastUpdateCheckUtc == null) LastUpdateCheckUtc = string.Empty;
         }
         public bool InitializeLanguageIfMissing(CultureInfo culture)
         {

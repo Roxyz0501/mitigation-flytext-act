@@ -57,7 +57,7 @@ namespace MitigationFlytext
             uint sourceId, targetId; long damage;
             if (f.Length < 10 || PlayerId == 0 || !Hex(f[2], out sourceId) || !Hex(f[6], out targetId) || targetId != PlayerId) return false;
             var pair = FindDamagePair(f);
-            if (pair < 0 || !FfxivAmountDecoder.TryDecode(f[pair + 1], out damage) || damage <= 0) return false;
+            if (pair < 0 || !FfxivAmountDecoder.TryDecode(f[pair + 1], out damage)) return false;
             var now = Timestamp(f[1]);
             List<ActiveMitigation> applied;
             lock (gate)

@@ -75,11 +75,20 @@ namespace MitigationFlytext
         private static void DrawIcon(Graphics g, ActiveMitigation m, RectangleF r, int alpha)
         {
             if (m.IsMine) using (var glow = new SolidBrush(Color.FromArgb(alpha / 3, 255, 190, 38))) g.FillEllipse(glow, r.X - 5, r.Y - 5, r.Width + 10, r.Height + 10);
-            using (var path = Rounded(r, 5)) using (var fill = new LinearGradientBrush(r, Color.FromArgb(alpha, 66, 87, 121), Color.FromArgb(alpha, 24, 34, 54), 90))
+            var icon = StatusIconStore.Get(m.Definition.StatusId);
+            using (var path = Rounded(r, 5))
             using (var border = new Pen(m.IsMine ? Color.FromArgb(alpha, 255, 192, 48) : Color.FromArgb(alpha, 170, 190, 216), m.IsMine ? 3f : 1.5f))
-            { g.FillPath(fill, path); g.DrawPath(border, path); }
-            using (var f = new Font("Segoe UI", Math.Max(7, r.Width * .28f), FontStyle.Bold)) using (var b = new SolidBrush(Color.FromArgb(alpha, 255, 255, 255)))
-            { var format = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center }; g.DrawString(m.Definition.Abbreviation, f, b, r, format); }
+            {
+                if (icon != null) g.DrawImage(icon, r);
+                else
+                {
+                    using (var fill = new LinearGradientBrush(r, Color.FromArgb(alpha, 66, 87, 121), Color.FromArgb(alpha, 24, 34, 54), 90)) g.FillPath(fill, path);
+                    using (var f = new Font("Segoe UI", Math.Max(7, r.Width * .28f), FontStyle.Bold))
+                    using (var b = new SolidBrush(Color.FromArgb(alpha, 255, 255, 255)))
+                    { var format = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center }; g.DrawString(m.Definition.Abbreviation, f, b, r, format); }
+                }
+                g.DrawPath(border, path);
+            }
         }
         private void DrawPreview(Graphics g)
         {

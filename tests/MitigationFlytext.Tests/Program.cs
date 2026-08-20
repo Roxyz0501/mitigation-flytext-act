@@ -16,7 +16,7 @@ internal static class Program
     {
         try
         {
-            DecodeDamage(); TrackMitigation(); TrackEnemyDebuff(); RemoveAndExpire(); LocalizationAndCompatibility(); CatalogSanity(); UpdateSafety(); RenderPreview();
+            DecodeDamage(); TrackMitigation(); TrackZeroDamage(); TrackEnemyDebuff(); RemoveAndExpire(); LocalizationAndCompatibility(); CatalogSanity(); UpdateSafety(); RenderPreview(); RenderSettingsTabs();
             Console.WriteLine("MitigationFlytext tests: PASS"); return 0;
         }
         catch (Exception ex) { Console.Error.WriteLine("MitigationFlytext tests: FAIL\n" + ex); return 1; }
@@ -44,6 +44,13 @@ internal static class Program
         t.ProcessLine(Damage("2026-01-01T00:00:02+00:00", "40000001", "Raidwide", "10000001", "23280000"));
         Assert(received != null && received.Mitigations.Single().Definition.Name == "Reprisal", "attacker debuff"); Assert(received.Mitigations.Single().IsMine, "self reprisal");
     }
+    private static void TrackZeroDamage()
+    {
+        var t = new CombatLogTracker(); DamageFlytextEvent received = null; t.DamageReceived += (s, e) => received = e;
+        t.ProcessLine("02|2026-01-01T00:00:00+00:00|10000001|Player|");
+        t.ProcessLine(Damage("2026-01-01T00:00:02+00:00", "40000001", "Invulnerable Hit", "10000001", "1000"));
+        Assert(received != null && received.Damage == 0 && received.EstimatedBeforeMitigation == 0, "zero damage must be displayed");
+    }
     private static void RemoveAndExpire()
     {
         var t = new CombatLogTracker(); var events = new List<DamageFlytextEvent>(); t.DamageReceived += (s, e) => events.Add(e); t.ProcessLine("02|2026-01-01T00:00:00+00:00|10000001|Player|");
@@ -57,7 +64,7 @@ internal static class Program
         Assert(Localization.MapCulture(new CultureInfo("ko-KR")) == "ko", "ko map"); Assert(Localization.Get("xx", "Support") == "Support", "fallback");
         var s = new PluginSettings(); Assert(s.InitializeLanguageIfMissing(new CultureInfo("ja-JP")) && s.Language == "ja", "first language"); Assert(!s.InitializeLanguageIfMissing(new CultureInfo("ko-KR")) && s.Language == "ja", "saved language");
     }
-    private static void CatalogSanity() { Assert(MitigationCatalog.All.Count() >= 25, "catalog coverage"); Assert(MitigationCatalog.All.All(x => x.Percent > 0 && x.Percent <= 100), "catalog rates"); }
+    private static void CatalogSanity() { Assert(MitigationCatalog.All.Count() >= 25, "catalog coverage"); Assert(MitigationCatalog.All.All(x => x.Percent > 0 && x.Percent <= 100), "catalog rates"); Assert(MitigationCatalog.All.All(x => StatusIconStore.Get(x.StatusId) != null), "all mitigation icons must be embedded"); }
     private static void UpdateSafety()
     {
         Assert(UpdateConfiguration.IsConfigured && UpdateConfiguration.RepositoryName == "mitigation-flytext-act", "repository config");
@@ -82,6 +89,20 @@ internal static class Program
             var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MitigationFlytext-preview.png"); bitmap.Save(path); Assert(new FileInfo(path).Length > 1000, "preview render");
         }
     }
+    private static void RenderSettingsTabs()
+    {
+        var output = AppDomain.CurrentDomain.BaseDirectory;
+        using (var control = new SettingsControl(new PluginSettings { Language = "ja" }))
+        {
+            control.Size = new Size(780, 460); var tab = Descendants(control).OfType<TabControl>().Single(); Assert(tab.TabCount == 3, "settings/update/support tabs");
+            for (var i = 0; i < tab.TabCount; i++)
+            {
+                tab.SelectedIndex = i; control.PerformLayout(); using (var bitmap = new Bitmap(control.Width, control.Height)) { control.DrawToBitmap(bitmap, control.ClientRectangle); bitmap.Save(Path.Combine(output, "MitigationFlytext-settings-" + i + ".png")); }
+            }
+            Assert(Descendants(tab.TabPages[0]).OfType<CheckBox>().All(x => x.Height >= 17), "checkboxes must not collapse");
+        }
+    }
+    private static IEnumerable<Control> Descendants(Control root) { foreach (Control child in root.Controls) { yield return child; foreach (var nested in Descendants(child)) yield return nested; } }
     private static string Damage(string at, string source, string name, string target, string amount) => "21|" + at + "|" + source + "|Boss|1234|" + name + "|" + target + "|Player|750003|" + amount + "|0|0|0|0|0|0|0|0|0|0|0|0|0|0|";
     private static void Assert(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
 }

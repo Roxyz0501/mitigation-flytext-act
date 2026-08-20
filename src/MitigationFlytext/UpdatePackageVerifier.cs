@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -69,10 +70,11 @@ namespace MitigationFlytext
             var actual = name.Version;
             if (releaseVersion == null || actual.Major != releaseVersion.Major || actual.Minor != releaseVersion.Minor || actual.Build != releaseVersion.Patch)
                 throw new InvalidDataException("InvalidPackage");
+            if (!string.Equals(FileVersionInfo.GetVersionInfo(dllPath).CompanyName, "Roxyz0501", StringComparison.Ordinal))
+                throw new InvalidDataException("InvalidPackage");
         }
 
         private static bool IsHex(char value) => (value >= '0' && value <= '9') || (value >= 'a' && value <= 'f') || (value >= 'A' && value <= 'F');
     }
 }
-
 

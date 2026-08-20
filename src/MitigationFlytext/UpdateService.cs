@@ -79,8 +79,13 @@ namespace MitigationFlytext
         public async Task<PreparedUpdate> DownloadAndVerifyAsync(ReleaseInfo release, CancellationToken cancellationToken)
         {
             if (release == null) throw new ArgumentNullException("release");
-            var zip = release.Assets.FirstOrDefault(x => x.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) && x.Name.IndexOf("MitigationFlytext", StringComparison.OrdinalIgnoreCase) >= 0);
-            var manifest = release.Assets.FirstOrDefault(x => x.Name.EndsWith(".sha256", StringComparison.OrdinalIgnoreCase) || x.Name.EndsWith("SHA256SUMS", StringComparison.OrdinalIgnoreCase));
+            var expectedZip = "MitigationFlytext-v" + release.Version + ".zip";
+            var alternateZip = "MitigationFlytext-" + release.Version + ".zip";
+            var zip = release.Assets.FirstOrDefault(x => string.Equals(x.Name, expectedZip, StringComparison.OrdinalIgnoreCase) || string.Equals(x.Name, alternateZip, StringComparison.OrdinalIgnoreCase));
+            var expectedManifest = "MitigationFlytext-v" + release.Version + ".sha256";
+            var manifest = release.Assets.FirstOrDefault(x => string.Equals(x.Name, expectedManifest, StringComparison.OrdinalIgnoreCase)) ??
+                release.Assets.FirstOrDefault(x => string.Equals(x.Name, zip == null ? string.Empty : zip.Name + ".sha256", StringComparison.OrdinalIgnoreCase)) ??
+                release.Assets.FirstOrDefault(x => string.Equals(x.Name, "SHA256SUMS.txt", StringComparison.OrdinalIgnoreCase));
             if (zip == null || manifest == null) throw new InvalidDataException("UpdateAssetMissing");
             if (zip.Size <= 0 || zip.Size > MaximumDownloadBytes || manifest.Size > 1024 * 1024) throw new InvalidDataException("InvalidPackage");
 
@@ -170,5 +175,4 @@ namespace MitigationFlytext
         public void Dispose() { client.Dispose(); }
     }
 }
-
 
