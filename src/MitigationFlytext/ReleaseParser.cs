@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web.Script.Serialization;
+using System.Text.RegularExpressions;
 
 namespace MitigationFlytext
 {
@@ -50,7 +51,12 @@ namespace MitigationFlytext
 
         internal static string Summarize(string body)
         {
-            var value = (body ?? string.Empty).Replace("\r", " ").Replace("\n", " ").Trim();
+            var value = body ?? string.Empty;
+            value = Regex.Replace(value, @"\*\*([^*]+)\*\*", "$1");
+            value = Regex.Replace(value, @"__([^_]+)__", "$1");
+            value = Regex.Replace(value, @"`([^`]+)`", "$1");
+            value = Regex.Replace(value, @"\[([^\]]+)\]\((https?://[^)]+)\)", "$1: $2");
+            value = value.Replace("\r", " ").Replace("\n", " ").Trim();
             while (value.Contains("  ")) value = value.Replace("  ", " ");
             return value.Length <= 280 ? value : value.Substring(0, 277) + "…";
         }
@@ -61,5 +67,4 @@ namespace MitigationFlytext
         private static long Long(Dictionary<string, object> item, string key) { var value = Value(item, key); return value == null ? 0 : Convert.ToInt64(value); }
     }
 }
-
 

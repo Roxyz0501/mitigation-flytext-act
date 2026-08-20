@@ -3,6 +3,7 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using System.Collections.Generic;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -62,8 +63,22 @@ namespace MitigationFlytext
         private async void InstallUpdate(object sender, EventArgs e)
         {
             var release = lastUpdateResult == null ? null : lastUpdateResult.Release; if (release == null || lastUpdateResult.Status != UpdateCheckStatus.UpdateAvailable) return; control.SetUpdateText("Preparing");
-            try { var prepared = await updateService.DownloadAndVerifyAsync(release, updateCancellation.Token); if (updateCancellation.IsCancellationRequested) return; updateService.LaunchUpdater(prepared, Assembly.GetExecutingAssembly().Location); control.SetUpdateText("Prepared"); status.Text = Localization.Get(settings.Language, "Prepared"); }
+            try { var prepared = await updateService.DownloadAndVerifyAsync(release, updateCancellation.Token); if (updateCancellation.IsCancellationRequested) return; var targetPath = ResolvePluginDllPath(ActGlobals.oFormActMain.ActPlugins, this, Assembly.GetExecutingAssembly().Location); updateService.LaunchUpdater(prepared, targetPath); control.SetUpdateText("Prepared"); status.Text = Localization.Get(settings.Language, "Prepared"); }
             catch (Exception ex) { control.SetUpdateText("UpdateFailed", ex.GetBaseException().Message); status.Text = Localization.Get(settings.Language, "UpdateFailed", ex.GetBaseException().Message); }
+        }
+        internal static string ResolvePluginDllPath(IEnumerable<ActPluginData> plugins, IActPluginV1 instance, string assemblyLocation)
+        {
+            if (plugins != null)
+            {
+                foreach (var plugin in plugins)
+                    if (plugin != null && ReferenceEquals(plugin.pluginObj, instance) && plugin.pluginFile != null && !string.IsNullOrWhiteSpace(plugin.pluginFile.FullName))
+                        return Path.GetFullPath(plugin.pluginFile.FullName);
+            }
+            var value = (assemblyLocation ?? string.Empty).Trim().Trim('"');
+            Uri uri;
+            if (Uri.TryCreate(value, UriKind.Absolute, out uri) && uri.IsFile) value = uri.LocalPath;
+            if (string.IsNullOrWhiteSpace(value)) throw new InvalidOperationException("PluginPathUnavailable");
+            return Path.GetFullPath(value);
         }
         private void Later(object sender, EventArgs e) { var release = lastUpdateResult == null ? null : lastUpdateResult.Release; if (release == null) return; settings.SkippedVersion = release.Version.ToString(); Save(); control.ShowUpdateSkipped(settings.SkippedVersion); }
         public void DeInitPlugin()

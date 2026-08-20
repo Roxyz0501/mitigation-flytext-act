@@ -7,6 +7,7 @@ namespace MitigationFlytext
         public const string RepositoryOwner = "Roxyz0501";
         public const string RepositoryName = "mitigation-flytext-act";
         public const string PluginAssemblyName = "MitigationFlytext";
+        public const string UpdaterAssemblyName = "MitigationFlytext.Updater";
         public const string PluginFileName = "MitigationFlytext.dll";
         public const string UpdaterFileName = "MitigationFlytext.Updater.exe";
 
@@ -18,5 +19,4 @@ namespace MitigationFlytext
             value.All(x => char.IsLetterOrDigit(x) || x == '-' || x == '_' || x == '.');
     }
 }
-
 

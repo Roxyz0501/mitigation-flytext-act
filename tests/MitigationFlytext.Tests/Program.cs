@@ -1,4 +1,5 @@
 using MitigationFlytext;
+using Advanced_Combat_Tracker;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -17,6 +18,7 @@ internal static class Program
         try
         {
             DecodeDamage(); TrackMitigation(); TrackZeroDamage(); TrackBarrierAbsorption(); TrackEnemyDebuff(); RemoveAndExpire(); LocalizationAndCompatibility(); CatalogSanity(); UpdateSafety(); PreviewToggleDoesNotHideWindow(); LockToggleKeepsWindowHandle(); RenderPreview(); RenderBarrierFlytext(); RenderSettingsTabs();
+            if (string.Equals(Environment.GetEnvironmentVariable("MITIGATION_UPDATE_INTEGRATION"), "1", StringComparison.Ordinal)) LiveUpdatePackage();
             Console.WriteLine("MitigationFlytext tests: PASS"); return 0;
         }
         catch (Exception ex) { Console.Error.WriteLine("MitigationFlytext tests: FAIL\n" + ex); return 1; }
@@ -81,6 +83,10 @@ internal static class Program
         Assert(UpdateConfiguration.IsConfigured && UpdateConfiguration.RepositoryName == "mitigation-flytext-act", "repository config");
         var json = "[{\"tag_name\":\"v1.1.0-beta.1\",\"draft\":false,\"prerelease\":true,\"assets\":[]},{\"tag_name\":\"v1.0.1\",\"body\":\"Fix\",\"draft\":false,\"prerelease\":false,\"assets\":[]}]";
         var result = UpdateService.EvaluateResponse(json, new Version(1, 0, 0)); Assert(result.Status == UpdateCheckStatus.UpdateAvailable && result.Release.Version.ToString() == "1.0.1", "stable release parse");
+        Assert(ReleaseParser.Summarize("**Full Changelog**: https://example.invalid/compare") == "Full Changelog: https://example.invalid/compare", "release notes markdown cleanup");
+        var plugin = new MitigationFlytextPlugin(); var registeredPath = Path.Combine(Path.GetTempPath(), "Registered", "MitigationFlytext.dll");
+        var pluginData = new ActPluginData { pluginObj = plugin, pluginFile = new FileInfo(registeredPath) };
+        Assert(MitigationFlytextPlugin.ResolvePluginDllPath(new[] { pluginData }, plugin, "file:///wrong/path.dll") == Path.GetFullPath(registeredPath), "ACT registered plugin path must win");
         var root = Path.Combine(Path.GetTempPath(), "MitigationFlytextTests", Guid.NewGuid().ToString("N")); Directory.CreateDirectory(root);
         try
         {
@@ -90,6 +96,18 @@ internal static class Program
             bool rejected = false; try { UpdatePackageVerifier.ExtractValidated(bad, Path.Combine(root, "out")); } catch (InvalidDataException) { rejected = true; } Assert(rejected, "zip slip");
         }
         finally { Directory.Delete(root, true); }
+    }
+    private static void LiveUpdatePackage()
+    {
+        using (var service = new UpdateService())
+        {
+            var result = service.CheckAsync(new Version(1, 0, 0), System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+            Assert(result.Status == UpdateCheckStatus.UpdateAvailable && result.Release != null, "live stable release check");
+            var prepared = service.DownloadAndVerifyAsync(result.Release, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+            Assert(File.Exists(prepared.StagedDllPath) && File.Exists(prepared.StagedUpdaterPath), "live package download and extraction");
+            var root = Directory.GetParent(Directory.GetParent(prepared.StagedDllPath).FullName).FullName;
+            Directory.Delete(root, true);
+        }
     }
     private static void RenderPreview()
     {

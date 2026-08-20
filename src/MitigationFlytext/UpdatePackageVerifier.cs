@@ -64,17 +64,23 @@ namespace MitigationFlytext
 
         public static void ValidatePluginAssembly(string dllPath, SemVersion releaseVersion)
         {
-            var name = AssemblyName.GetAssemblyName(dllPath);
-            if (!string.Equals(name.Name, UpdateConfiguration.PluginAssemblyName, StringComparison.Ordinal))
-                throw new InvalidDataException("InvalidPackage");
+            ValidateAssembly(dllPath, UpdateConfiguration.PluginAssemblyName, releaseVersion);
+        }
+
+        public static void ValidateUpdaterAssembly(string updaterPath, SemVersion releaseVersion) =>
+            ValidateAssembly(updaterPath, UpdateConfiguration.UpdaterAssemblyName, releaseVersion);
+
+        private static void ValidateAssembly(string path, string expectedName, SemVersion releaseVersion)
+        {
+            var name = AssemblyName.GetAssemblyName(path);
+            if (!string.Equals(name.Name, expectedName, StringComparison.Ordinal)) throw new InvalidDataException("InvalidPackage");
             var actual = name.Version;
             if (releaseVersion == null || actual.Major != releaseVersion.Major || actual.Minor != releaseVersion.Minor || actual.Build != releaseVersion.Patch)
                 throw new InvalidDataException("InvalidPackage");
-            if (!string.Equals(FileVersionInfo.GetVersionInfo(dllPath).CompanyName, "Roxyz0501", StringComparison.Ordinal))
+            if (!string.Equals(FileVersionInfo.GetVersionInfo(path).CompanyName, "Roxyz0501", StringComparison.Ordinal))
                 throw new InvalidDataException("InvalidPackage");
         }
 
         private static bool IsHex(char value) => (value >= '0' && value <= '9') || (value >= 'a' && value <= 'f') || (value >= 'A' && value <= 'F');
     }
 }
-

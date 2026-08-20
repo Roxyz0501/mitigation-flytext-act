@@ -104,17 +104,19 @@ namespace MitigationFlytext
             var updater = Directory.GetFiles(extracted, UpdateConfiguration.UpdaterFileName, SearchOption.AllDirectories).SingleOrDefault();
             if (dll == null || updater == null) throw new InvalidDataException("InvalidPackage");
             UpdatePackageVerifier.ValidatePluginAssembly(dll, release.Version);
+            UpdatePackageVerifier.ValidateUpdaterAssembly(updater, release.Version);
             return new PreparedUpdate { StagedDllPath = dll, StagedUpdaterPath = updater, DllSha256 = UpdatePackageVerifier.ComputeSha256(dll), Release = release };
         }
 
         public void LaunchUpdater(PreparedUpdate update, string targetDllPath)
         {
             if (update == null) throw new ArgumentNullException("update");
-            var currentUpdater = Path.Combine(Path.GetDirectoryName(targetDllPath), UpdateConfiguration.UpdaterFileName);
-            if (!File.Exists(currentUpdater)) throw new InvalidOperationException("UpdaterMissing");
+            var stagedUpdater = Path.GetFullPath(update.StagedUpdaterPath);
+            if (!File.Exists(stagedUpdater)) throw new InvalidOperationException("UpdaterMissing");
             var info = new ProcessStartInfo
             {
-                FileName = currentUpdater,
+                FileName = stagedUpdater,
+                WorkingDirectory = Path.GetDirectoryName(stagedUpdater),
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 Arguments = "--wait-pid " + Process.GetCurrentProcess().Id +
@@ -175,4 +177,3 @@ namespace MitigationFlytext
         public void Dispose() { client.Dispose(); }
     }
 }
-
