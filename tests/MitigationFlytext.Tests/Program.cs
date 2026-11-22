@@ -9,6 +9,7 @@ using System.IO.Compression;
 using System.Text;
 using System.Drawing;
 using System.Windows.Forms;
+using System.Reflection;
 
 internal static class Program
 {
@@ -161,11 +162,21 @@ internal static class Program
         using (var control = new SettingsControl(new PluginSettings { Language = "ja" }))
         {
             control.Size = new Size(780, 460); var tab = Descendants(control).OfType<TabControl>().Single(); Assert(tab.TabCount == 3, "settings/update/support tabs");
+            Assert(tab.TabPages[1].GetType().FullName == "Roxyz.Act.UI.PluginUpdatePage", "update tab must use the shared update page");
             for (var i = 0; i < tab.TabCount; i++)
             {
                 tab.SelectedIndex = i; control.PerformLayout(); using (var bitmap = new Bitmap(control.Width, control.Height)) { control.DrawToBitmap(bitmap, control.ClientRectangle); bitmap.Save(Path.Combine(output, "MitigationFlytext-settings-" + i + ".png")); }
             }
             Assert(Descendants(tab.TabPages[0]).OfType<CheckBox>().All(x => x.Height >= 17), "checkboxes must not collapse");
+            var evidenceDirectory = Environment.GetEnvironmentVariable("MITIGATION_EVIDENCE_DIR");
+            if (!string.IsNullOrWhiteSpace(evidenceDirectory))
+            {
+                Directory.CreateDirectory(evidenceDirectory); control.Size = new Size(1472, 826); tab.SelectedIndex = 1; control.PerformLayout(); Application.DoEvents();
+                var page = tab.TabPages[1]; var stateType = page.GetType().Assembly.GetType("Roxyz.Act.UI.UpdatePageState");
+                page.GetType().GetMethod("ShowState").Invoke(page, new[] { Enum.Parse(stateType, "Available"), (object)"安定版の更新があります: 1.0.3 → 1.0.4\r\n\r\n更新内容:\r\n・更新タブの表示を統一\r\n・状態とボタンの配置を改善" });
+                Application.DoEvents();
+                using (var bitmap = new Bitmap(1472, 826)) { control.DrawToBitmap(bitmap, new Rectangle(0, 0, 1472, 826)); bitmap.Save(Path.Combine(evidenceDirectory, "MitigationFlytext-update-1472x826-test-render.png")); }
+            }
         }
     }
     private static IEnumerable<Control> Descendants(Control root) { foreach (Control child in root.Controls) { yield return child; foreach (var nested in Descendants(child)) yield return nested; } }

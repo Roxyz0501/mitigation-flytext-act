@@ -5,7 +5,7 @@
     <LangVersion>7.3</LangVersion>
     <AssemblyName>MitigationFlytext</AssemblyName>
     <RootNamespace>MitigationFlytext</RootNamespace>
-    <Version>1.0.2</Version>
+    <Version>1.0.3</Version>
     <Authors>Roxyz0501</Authors>
     <Company>Roxyz0501</Company>
     <Product>Mitigation Flytext for ACT</Product>
@@ -23,5 +23,9 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Assets\Status\*.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\..\shared\PluginTabs.cs" Link="PluginTabs.cs" />
+    <Compile Include="..\..\shared\PluginUpdatePage.cs" Link="PluginUpdatePage.cs" />
   </ItemGroup>
 </Project>
